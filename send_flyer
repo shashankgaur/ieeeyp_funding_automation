@@ -32,7 +32,7 @@ function getQrImg(pptSlides, linkUrl) {
 
 
 function createFlyer(section, eventtype, surveyUrl) {
- var ppt = SlidesApp.openByUrl("https://docs.google.com/presentation/d/1ckGH7DPpPNDwLfJTTX9B8GyLznbgUHag1R5GC0MpZcg/edit");
+ var ppt = SlidesApp.openByUrl("https://docs.google.com/presentation/d/...");
  var img = getQrImg(ppt.getSlides(), 'http://yp.ieee.org');
  var qrUrl = "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chld=L|1&chl="+encodeURIComponent(surveyUrl);
  img.replace(qrUrl);
@@ -47,7 +47,7 @@ function createFlyer(section, eventtype, surveyUrl) {
 }
 
 function createSlide(section, eventtype, surveyUrl) {
- var ppt = SlidesApp.openByUrl("https://docs.google.com/presentation/d/1-RSoU9tRLdsmzjdoSWlxCZ7_XQA2Wefb5HtPv5E_nD8/edit");
+ var ppt = SlidesApp.openByUrl("https://docs.google.com/presentation/d/....");
  var img = getQrImg(ppt.getSlides(), 'http://yp.ieee.org');
  var qrUrl = "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chld=L|1&chl="+encodeURIComponent(surveyUrl);
  img.replace(qrUrl);
@@ -61,7 +61,7 @@ function createSlide(section, eventtype, surveyUrl) {
 
 
 function sendEmail(){
-  var eventFile = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/1NZmpF4XbkpDCCNzW5NgMSyd3uxhdaVRQFJbTycqXKhA/edit').getSheetByName("event");
+  var eventFile = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/...').getSheetByName("event");
   var eventrange = eventFile.getDataRange();
   var eventInfo = eventrange.getValues();
   for ( var i = 0; i <= eventInfo.length-1; i++) {
