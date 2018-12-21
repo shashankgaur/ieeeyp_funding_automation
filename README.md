@@ -4,5 +4,4 @@ IEEE Young Professionals Funding Portal (http://yp-events.fluidreview.com/) uses
 
 We use Google Apps Script to achieve that. We push raw data for each approved event to the a google sheet via a parser bot provided by Zapier. In addition, we use SurveyMonkey to maintain the surveys and push the survey responses to a google sheet from Zapier using Zapier itself.
 
-We are in process of building our own Parser bot and Surveymonkey API app to avoid Zapier, but for now Zapier serves as the middleman.
 
