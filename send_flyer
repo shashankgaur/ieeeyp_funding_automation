@@ -1,0 +1,129 @@
+/*
+Copyright (C) 2018, IEEE Young Professionals Committee 
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+https://www.gnu.org/licenses/gpl.txt
+
+RUN THIS SCRIPT EVERYDAY 
+
+*/
+function getQrImg(pptSlides, linkUrl) {
+  var imgs = pptSlides[0].getImages();
+  for( var i = 0; i < imgs.length; i++ ) {
+    var exlinkurl = imgs[i].getLink().getUrl();
+    if( exlinkurl == linkUrl ) {
+      return imgs[i];
+    }
+  }
+  return null;
+}
+
+
+function createFlyer(section, eventtype, surveyUrl) {
+ var ppt = SlidesApp.openByUrl("https://docs.google.com/presentation/d/1ckGH7DPpPNDwLfJTTX9B8GyLznbgUHag1R5GC0MpZcg/edit");
+ var img = getQrImg(ppt.getSlides(), 'http://yp.ieee.org');
+ var qrUrl = "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chld=L|1&chl="+encodeURIComponent(surveyUrl);
+ img.replace(qrUrl);
+ Utilities.sleep(3000);
+ ppt.saveAndClose();
+ var pptFile =  DriveApp.getFileById(ppt.getId());
+ var pptFolder = pptFile.getParents().next();
+ var blob = pptFile.getBlob();
+ var pdfFile = pptFolder.createFile(blob);
+ pdfFile.setName(section+" "+eventtype);
+ return pdfFile;
+}
+
+function createSlide(section, eventtype, surveyUrl) {
+ var ppt = SlidesApp.openByUrl("https://docs.google.com/presentation/d/1-RSoU9tRLdsmzjdoSWlxCZ7_XQA2Wefb5HtPv5E_nD8/edit");
+ var img = getQrImg(ppt.getSlides(), 'http://yp.ieee.org');
+ var qrUrl = "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chld=L|1&chl="+encodeURIComponent(surveyUrl);
+ img.replace(qrUrl);
+ Utilities.sleep(3000);
+ ppt.saveAndClose();
+ var pptFile =  DriveApp.getFileById(ppt.getId());
+ var pptFolder = pptFile.getParents().next();
+ var newpptFile = pptFile.makeCopy(section+" "+eventtype, pptFolder);
+ return newpptFile;
+}
+
+
+function sendEmail(){
+  var eventFile = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/1NZmpF4XbkpDCCNzW5NgMSyd3uxhdaVRQFJbTycqXKhA/edit').getSheetByName("event");
+  var eventrange = eventFile.getDataRange();
+  var eventInfo = eventrange.getValues();
+  for ( var i = 0; i <= eventInfo.length-1; i++) {
+    var eventDate = new Date(eventInfo[i][4]);
+    var eventDay = parseInt(Utilities.formatDate(eventDate, "GMT", "D"));
+    var today = parseInt(Utilities.formatDate(new Date(), "GMT", "D"));
+    if (eventDay-today == 7 || eventDay-today == 2) {
+      var primaryemail = eventInfo[i][2];
+      var secondaryemail = eventInfo[i][3];
+      var section = eventInfo[i][0];
+      var eventtype = eventInfo[i][1];
+      var fromaddress = GmailApp.getAliases()[1];
+      var surveyUrl = "yp.ieee.org/survey/?s="+section+"&t="+eventtype;
+      var regex = new RegExp("\\s", 'gi');
+      var newsection = section.replace(regex,"+");
+      var newsurveyUrl = "yp.ieee.org/survey/?s="+newsection+"&t="+eventtype;
+      var flyerFile = createFlyer(section, eventtype, surveyUrl);
+      var pptFile = createSlide(section, eventtype, surveyUrl);
+      var slideBlob = pptFile.getBlob();
+      slideBlob.setName(pptFile.getName() + ".pptx");
+      var subject = "Survey Link and Flyer for your event";        
+      var body = "Dear Young Professionals Event Organizer,"+'\n'+'\n'+
+                  "Thank you for organizing an event for your local Young Professionals community. We truly appreciate your efforts and hope your event will be a great success."+'\n'+'\n'+
+                  "As you are aware, in order to receive the IEEE Young Professionals funding that was approved for your event, you must submit follow-up material within four weeks of the event’s completion."+
+                  " One of the required follow-up materials is the responses of audience to the Event Feedback survey."+'\n'+'\n'+
+                  "Please use following link as it is to distribute the survey to your audience, and you will be sent responses of that survey few days after your event date."+'\n'+'\n'+newsurveyUrl+'\n'+
+                  '\n'+"This is a unique link generated for your event, please COPY and PASTE it in browser WITHOUT ANY CHANGES. Please Make sure you copy it correctly and completely till the end, not just the hyperlinked part. Sometimes whitespaces can result in bad hyperlink."+'\n'+
+                  '\n'+"Also, A flyer with QR code is attached to this email to help you communicate with your audience."+'\n'+
+                  '\n'+"DO NOT REPLY -- This email was sent automatically on behalf of IEEE Young Professionals, contact ypfunding@ieee.org for any queries."+'\n'+'\n'+
+                  "Thank you very much,"+'\n'+
+                  "IEEE Young Professionals";
+      var filename = flyerFile.getName();
+      if (secondaryemail != ""){
+          GmailApp.sendEmail(primaryemail,subject ,body, {attachments:[pptFile, flyerFile.getAs(MimeType.PDF)], cc: secondaryemail, name:"IEEE Young Professionals", from:fromaddress});
+      }
+      else {
+          GmailApp.sendEmail(primaryemail,subject ,body, {attachments:[pptFile, flyerFile.getAs(MimeType.PDF)], name:"IEEE Young Professionals", from:fromaddress});
+      }
+      //GmailApp.sendEmail(primaryemail,subject ,body, {attachments:[flyerFile.getAs(MimeType.PDF)], name:"IEEE Young Professionals", from:fromaddress,  noReply:true, replyTo:fromaddress});
+    }
+    /* else if (today-eventDay == 60) {
+      var primaryemail = eventInfo[i][2];
+      var secondaryemail = eventInfo[i][3];
+      var section = eventInfo[i][0];
+      var eventtype = eventInfo[i][1];
+      var fromaddress = GmailApp.getAliases()[1];
+      var subject = "Satisfaction Survey for Organizers";        
+      var body = "Dear Young Professionals Event Organizer,"+'\n'+'\n'+
+                  "Thank you for organizing an event for your local Young Professionals community. We truly appreciate your efforts and hope your event was a great success."+'\n'+'\n'+
+                    "We would very much appreciate your feedback on the process of getting funding for this event through our funding portal. Please provide your input using the following survey:"+
+                  "yp.ieee.org/events/organizers "+
+                  '\n'+"DO NOT REPLY -- This email was sent automatically on behalf of IEEE Young Professionals, contact ypfunding@ieee.org for any queries."+'\n'+'\n'+
+                  "Thank you very much for your time,"+'\n'+
+                  "IEEE Young Professionals";
+      if (secondaryemail != ""){
+          GmailApp.sendEmail(primaryemail,subject ,body, {cc: secondaryemail, name:"IEEE Young Professionals", from:fromaddress});
+      }
+      else {
+          GmailApp.sendEmail(primaryemail,subject ,body, {name:"IEEE Young Professionals", from:fromaddress});
+      }
+      //GmailApp.sendEmail(primaryemail,subject ,body, {attachments:[flyerFile.getAs(MimeType.PDF)], name:"IEEE Young Professionals", from:fromaddress,  noReply:true, replyTo:fromaddress});
+    }*/
+  }
+}
+
