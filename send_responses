@@ -1,0 +1,217 @@
+/*
+Copyright (C) 2018, IEEE Young Professionals Committee 
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+https://www.gnu.org/licenses/gpl.txt
+
+
+*/
+
+
+function onlyToAddTheDriveScope(){
+DriveApp.getRootFolder()
+}
+
+
+
+function onOpen() {
+var ss = SpreadsheetApp.getActiveSpreadsheet();
+var menuEntries = [ {name: "Send Email to Event Organizers", functionName: "sendEmail"}];
+menuEntries.push({name: "Create Monthly Event Response Sheets", functionName: "createSheets"});
+menuEntries.push({name: "Delete Monthly Event Response Sheets", functionName: "deleteSheets"});
+ss.addMenu("Scripts", menuEntries);
+};
+
+function getEventInfo(){
+  var now = new Date();
+  var months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"]
+  var currentmonth = now.getMonth();
+  if ( currentmonth == 0.0){
+    var lastmonth = "DECEMBER";
+  }
+  else {
+    var lastmonth = months[currentmonth-1];
+  }
+  var eventfileID = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/....').getId();
+  var eventsheet = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/....').getSheetByName(lastmonth); 
+  var eventsheetID = eventsheet.getSheetId();  
+  var eventrange = eventsheet.getDataRange();
+  return eventrange.getValues();
+}
+
+//function to create sheets, should run before sendemail in the beginning of the month
+function createSheets() {
+  var eventInfo = getEventInfo();
+  var mainfile = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/....');
+  for ( var i = 0; i <= eventInfo.length-1; i++) {
+    var section = eventInfo[i][0];
+    var eventtype = eventInfo[i][1];
+    if ( section != "" && eventtype != "") {
+      var newsheetname = section+" "+eventtype;
+      if (mainfile.getSheetByName(newsheetname) == null) {
+        mainfile.insertSheet(newsheetname);
+        var sheet = mainfile.getSheetByName(newsheetname);
+        var cell = sheet.getRange("A1");
+        //cell.setFormula("=(FILTER(responses!A:Z, responses!A:A = \""+section+"\", responses!B:B= \""+eventtype+"\"))");
+        cell.setFormula("=(FILTER(responses!A:Z, ((responses!A:A = \""+section+"\")*(responses!B:B= \""+eventtype+"\"))+((responses!A:A = \"Section\")*(responses!B:B= \"Type\"))))");
+      }
+    }
+  }
+};
+
+//function to delete sheets, should run before sendemail in the end of the month
+function deleteSheets() {
+  var eventInfo = getEventInfo();
+  var mainfile = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/....');
+  for ( var i = 0; i <= eventInfo.length-1; i++) {
+    var section = eventInfo[i][0];
+    var eventtype = eventInfo[i][1];
+    if ( section != "" && eventtype != "") {
+      var newsheetname = section+" "+eventtype;
+      var sheet = mainfile.getSheetByName(newsheetname);
+      if (sheet != null) {
+        mainfile.deleteSheet(sheet);
+      }
+    }
+  }
+  var mainsheet = mainfile.getSheetByName("responses");
+  mainfile.setActiveSheet(mainsheet);
+};
+                 
+//function to send email of the sheets
+function sendEmail() {
+  var eventInfo = getEventInfo();
+  var mainfile = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/...');
+  var mainfileID = mainfile.getId(); 
+  var mainsheet = mainfile.getSheetByName("responses");
+  for ( var i = 0; i <= eventInfo.length-1; i++) {
+    var primaryemail = eventInfo[i][2];
+    var section = eventInfo[i][0];
+    var eventtype = eventInfo[i][1];
+    var secondaryemail = eventInfo[i][3];
+    if ( primaryemail != "" && section != "" && eventtype != "") {
+      Utilities.sleep(1200);
+      var newsheetname = section+" "+eventtype;
+      var sheet = mainfile.getSheetByName(newsheetname); 
+      if (sheet != null && sheet.getRange("B1").getValue() != "") {
+        var sheetID = sheet.getSheetId();
+        var sheetName = sheet.getName();        
+        var subject = "Survey Responses for your recent IEEE Young Professionals event";        
+        var body = "Dear Young Professionals Event Organizer,"+'\n'+'\n'+
+                  "Thank you for organizing an event for your local Young Professionals community. We truly appreciate your efforts and hope your event was a great success."+'\n'+'\n'+
+                  "As you are aware, in order to receive the IEEE Young Professionals funding that was approved for your event, you must submit follow-up material within four weeks of the event’s completion."+
+                  " One of the required follow-up materials is the responses of audience to the Event Feedback survey."+'\n'+'\n'+
+                  "In the attachment, you will find an excel sheet with all survey responses for your event, received till now. Please use this file to upload in the funding portal with your follow-up material."+'\n'+
+                  '\n'+"DO NOT REPLY -- This is an automated email. For any queries, please email at ypfunding@ieee.org."+'\n'+'\n'+
+                  "Thank you very much,"+'\n'+
+                  "IEEE Young Professionals";
+        var requestData = {"method": "GET",
+                           "headers":{"Authorization":"Bearer "+ScriptApp.getOAuthToken()}
+                          };
+        Utilities.sleep(1200);
+        var fromaddress = GmailApp.getAliases()[1];
+        var url = "https://docs.google.com/spreadsheets/d/"
+        + mainfileID + "/export?format=xlsx&gid="+sheetID;
+        // Linke to cUseful https://github.com/brucemcpherson/cUseful http://ramblings.mcpher.com/Home/excelquirks/gassnips/expbackoff
+        var result =  cUseful.Utils.expBackoff (function () {
+        return UrlFetchApp.fetch(url , requestData);;
+        });
+        var contents = result.getContent();
+        Utilities.sleep(1200);
+        if (secondaryemail != ""){
+          GmailApp.sendEmail(primaryemail,subject ,body, {attachments:[{fileName:sheetName+".xls", content:contents, mimeType:"application//xls"}], cc: secondaryemail, name:"IEEE Young Professionals", from:fromaddress});
+        }
+        else {
+          GmailApp.sendEmail(primaryemail,subject ,body, {attachments:[{fileName:sheetName+".xls", content:contents, mimeType:"application//xls"}], name:"IEEE Young Professionals", from:fromaddress});
+        }
+      }
+    }
+  }
+};
+
+function sendEmailV2(){
+  var eventFile = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/....').getSheetByName("event");
+  var responsefile = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/...');
+  var responsefileID = responsefile.getId();
+  var eventrange = eventFile.getDataRange();
+  var eventInfo = eventrange.getValues();
+  for ( var i = 1; i <= eventInfo.length-1; i++) {
+    var eventDate = new Date(eventInfo[i][4]);
+    var eventDay = parseInt(Utilities.formatDate(eventDate, "GMT", "D"));
+    var today = parseInt(Utilities.formatDate(new Date(), "GMT", "D"));
+    // check if today is after 2 days, 1 week(7 days) or 2 weeks (14 days) after the event
+    if (today-eventDay == 2 || today-eventDay == 7 || today-eventDay == 14) {
+      var primaryemail = eventInfo[i][2];
+      var secondaryemail = eventInfo[i][3];
+      var section = eventInfo[i][0];
+      var eventtype = eventInfo[i][1];
+      var fromaddress = GmailApp.getAliases()[1];
+      // create sheet for the event here
+      if ( section != "" && eventtype != "") {
+        var newsheetname = section+" "+eventtype;
+      if (responsefile.getSheetByName(newsheetname) == null) {
+        responsefile.insertSheet(newsheetname);
+        }
+      }
+      var sheet = responsefile.getSheetByName(newsheetname);
+      var cell = sheet.getRange("A1");
+      //cell.setFormula("=(FILTER(responses!A:Z, responses!A:A = \""+section+"\", responses!B:B= \""+eventtype+"\"))");
+      cell.setFormula("=(FILTER(responses!A:Z, ((responses!A:A = \""+section+"\")*(responses!B:B= \""+eventtype+"\"))+((responses!A:A = \"Section\")*(responses!B:B= \"Type\"))))");
+      Utilities.sleep(1200);
+      SpreadsheetApp.flush();
+      //send the email only if sheet exists and has at least one response
+      if (sheet != null && sheet.getRange("B1").getValue() != "") {
+        var sheetID = sheet.getSheetId();
+        var sheetName = sheet.getName();        
+        var subject = "Survey Responses for your recent IEEE Young Professionals event";        
+        var body = "Dear Young Professionals Event Organizer,"+'\n'+'\n'+
+                  "Thank you for organizing an event for your local Young Professionals community. We truly appreciate your efforts and hope your event was a great success."+'\n'+'\n'+
+                  "As you are aware, in order to receive the IEEE Young Professionals funding that was approved for your event, you must submit follow-up material within four weeks of the event’s completion."+
+                  " One of the required follow-up materials is the responses of audience to the Event Feedback survey."+'\n'+'\n'+
+                  "In the attachment, you will find an excel sheet with all survey responses for your event, received till now. Please use this file to upload in the funding portal with your follow-up material."+'\n'+
+                  '\n'+"DO NOT REPLY -- This is an automated email. For any queries, please email at ypfunding@ieee.org."+'\n'+'\n'+
+                  "Thank you very much,"+'\n'+
+                  "IEEE Young Professionals";
+        var requestData = {"method": "GET",
+                           "headers":{"Authorization":"Bearer "+ScriptApp.getOAuthToken()}
+                          };
+        Utilities.sleep(1200);
+        var fromaddress = GmailApp.getAliases()[1];
+        var url = "https://docs.google.com/spreadsheets/d/"
+        + responsefileID + "/export?format=xlsx&gid="+sheetID;
+        // Linke to cUseful https://github.com/brucemcpherson/cUseful http://ramblings.mcpher.com/Home/excelquirks/gassnips/expbackoff
+        var result =  cUseful.Utils.expBackoff (function () {
+        return UrlFetchApp.fetch(url , requestData);;
+        });
+        var contents = result.getContent();
+        Utilities.sleep(1200);
+        var cellValue = sheet.getRange("B1").getValue();
+        if (secondaryemail != ""){
+          GmailApp.sendEmail(primaryemail,subject ,body, {attachments:[{fileName:sheetName+".xls", content:contents, mimeType:"application//xls"}], cc: secondaryemail, name:"IEEE Young Professionals", from:fromaddress});
+        }
+        else {
+          GmailApp.sendEmail(primaryemail,subject ,body, {attachments:[{fileName:sheetName+".xls", content:contents, mimeType:"application//xls"}], name:"IEEE Young Professionals", from:fromaddress});
+        }
+        Utilities.sleep(1200);
+        //delete the sheet created above
+        responsefile.deleteSheet(sheet);
+      }
+    }
+  }
+}
+
+
+
+
